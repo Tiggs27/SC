@@ -1,0 +1,46 @@
+from mesa.visualization.modules import CanvasGrid
+from mesa.visualization.ModularVisualization import ModularServer
+from mesa.visualization.modules import ChartModule
+
+from system import *
+
+#ALTERAR AQUI OS VALORES DO MUNDO
+init_infected = 0.5
+init_healthy = 0.5
+world_width = 20
+world_height = 20
+r_seed = 125
+recov = False
+neigh = True
+die_pr = 0.05
+infe_pr = 0.1
+
+def grid_agent(agent):
+    portrayal = {"Shape" : "circle", "Filled": "true", "Layer": 0, "r" : 0.5}
+
+    #Healthy
+    if agent.state == 0:
+        portrayal["Color"] = "green"
+    #Infected
+    elif agent.state == 1:
+        portrayal["Color"] = "red"
+    #Dead
+    elif agent.state == 2:
+        portrayal["Color"] = "grey"
+
+    return portrayal
+
+if __name__ == "__main__":
+    grid = CanvasGrid(grid_agent, world_width, world_height, 800, 800)
+
+    chart = ChartModule([{"Label": "Healthy", "Color": "#3aeb2a"},
+                             {"Label": "Infected", "Color": "#AA0000"},
+                             {"Label": "Dead", "Color": "#4f524f"}])
+
+    server = ModularServer(HostModel, 
+                        [grid, chart],
+                        "Host Model",
+                        {"healthy": world_width*world_height*init_healthy, "infected": world_width*world_height*init_infected,"width": world_width, "height": world_height, "die": die_pr, "infect": infe_pr, "recovery": recov, "neighbourhood": neigh, "seed": r_seed})
+
+    server.port = 8529
+    server.launch()

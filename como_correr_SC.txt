@@ -1,0 +1,22 @@
+Os ficheiros estão em formato txt pois não era permitido enviar ficheiros zip nem py. é necessário fazer a troca para .py antes de correr
+
+O nosso projeto está dividido em 2 ficheiros, system.py e system_vis.py.
+O system.py apenas serve para fazer as simulacoes e guardar os valores em dataframes para depois serem usados para a análise do sistema.
+Enquanto que o system_vis.py é onde podemos fazer a simulação com visualização e os dados não são guardados.
+
+Para colocar o system.py a correr basta apenas definir na função main quais são os valores para cada um dos parâmetros:
+health_inf -> percentagens iniciais dos agentes healthy e infected, tem de ser uma lista de tamanho dois, com as probabilidades primeiro dos agentes healthy e depois infected
+prob_mor -> probabilidade de morte, entre 0 e 1
+prob_inf -> probabilidade de infecao, entre 0 e 125 se neighbourhood e de Moore e 0.25 se neighbourhood e de Von Neumann
+recover -> agentes infetados podem recuperar ou não, True ou False
+neighbourhood -> tipo de vizinhança, Moore -> True, von Neumann -> False
+
+depois basta apenas chamar py system.py
+
+Quando ao system_vis.py para o colocar a correr basta apenas garantir que a port não está ocupada, dar os valores a cada uma das variáveis:
+init_infected -> percentagem de infected agents
+init_healthy -> percentagem de healthy agents
+recov -> True se os infected agents puderem recuperar e false se os healthy agents nao puderem recuperar
+neigh -> True para vizinhança de Moore, False para vizinhança Von Neumann
+die_pr -> probabilidade de morte, 0 a 1
+infe_pr -> probabilidade de infeção, probabilidade de infecao, entre 0 e 125 se neighbourhood e de Moore e 0.25 se neighbourhood e de Von Neumann

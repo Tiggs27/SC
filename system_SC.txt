@@ -1,0 +1,169 @@
+from mesa import Agent, Model
+from mesa.time import SimultaneousActivation
+from mesa.space import SingleGrid
+from mesa.datacollection import DataCollector
+from mesa.batchrunner import batch_run
+
+import matplotlib.pyplot as plt
+from numpy import random as rd
+import pandas as pd
+import numpy as np
+import csv
+
+
+def healthy_count(model):
+    healthy_count = 0
+
+    for agent in model.schedule.agents:
+        state = agent.state
+        if state == 0:
+            healthy_count += 1
+
+    return healthy_count
+
+def infected_count(model):
+    infected_count = 0
+    for agent in model.schedule.agents:
+        state = agent.state
+
+        if state == 1:
+            infected_count += 1
+
+    return infected_count
+
+def dead_count(model):
+    dead_count = 0
+    for agent in model.schedule.agents:
+        state = agent.state
+
+        if state == 2:
+            dead_count += 1
+
+    return dead_count
+
+
+class Agent(Agent):
+    def __init__(self, state, unique_id, model, die, infect, recovery, neighbour):
+        super().__init__(unique_id, model)
+        #Host State(0 - healthy, 1 - infeceted, 2 - dead)
+        self.state = state
+        self.recovery_rate = 0
+
+        self.neighbor = neighbour
+
+        if recovery == True:
+            self.recovery_rate = 1
+
+        #variables running multiple tests
+        self.death_prob = die
+        self.infect_prob = infect
+        self.recovery = recovery
+
+    def step(self):
+        #if not dead
+        if self.state != 2:
+            #if not infected
+            if self.state != 1:
+                self.infect()
+            else:
+                if self.recovery_rate < 1 and self.recovery == True:
+                    self.recovery_rate += 0.2
+                self.die()
+
+    def infect(self):
+        neighborhood = self.model.grid.get_neighborhood(self.pos, moore=self.neighbor, include_center=False)
+        num_neighbors = 0
+        for neigh in neighborhood:
+            cell = self.model.grid.get_cell_list_contents(neigh)
+            if len(cell) == 1 and cell[0].state == 1:
+                num_neighbors += 1
+
+        #multiplicar a probabilidade de ser infetado pelo numero de vizinhos infetados
+        #probabilidade maxima de ser infetado a partida tem de ser de 0.125 pq na moore 0.125 * 8(numero maximo de vizinhos possivel) dara 1 que e o maximo da probabilidade
+        #probabilidade maxima de ser infetado a partida tem de ser de 0.25 pq na von neumann 0.25 * 4(numero maximo de vizinhos possivel) dara 1 que e o maximo da probabilidade
+
+        inf_prob = num_neighbors * self.infect_prob
+
+        s = int(rd.choice([0, 1], 1, p=[1-inf_prob, inf_prob]))
+
+        self.state = s
+        
+        if s == 1 and self.recovery == True:
+            self.recovery_rate = 0.2
+
+    def die(self):
+        rate = 1-self.death_prob
+
+        s = int(rd.choice([0, 1, 2], 1, p=[self.recovery_rate*rate, (1-self.recovery_rate)*rate, self.death_prob]))
+
+        self.state = s
+
+#Todos, os hosts comecam ou infetados ou healthy nenhum morto
+#Se um host esta morto pode ter uma probabilidade mais baixa de infetar e c cada iteracao a probabilidade vai diminuido para se assemelhar a realidade
+class HostModel(Model):
+    def __init__(self, healthy, infected, width, height, die, infect, recovery, neighbourhood, seed=None):
+        self.grid = SingleGrid(width, height, torus=False)
+        self.schedule = SimultaneousActivation(self)
+        self.running = True
+        positions = []
+
+        h = 0
+
+        #create hosts healthy
+        while h < healthy:
+
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+
+            position = (x, y)
+
+            if position not in positions:
+                health = Agent(0, h, self, die, infect, recovery, neighbourhood)
+                positions.append(position)
+                self.grid.place_agent(health, (x, y))
+                self.schedule.add(health)
+                h += 1
+
+        #create hosts infected
+        i = h
+
+        while i < healthy + infected:
+
+            x = self.random.randrange(self.grid.width)
+            y = self.random.randrange(self.grid.height)
+            position = (x, y)
+
+            if position not in positions:
+                inf = Agent(1, i, self, die, infect, recovery, neighbourhood)
+                positions.append(position)
+                self.grid.place_agent(inf, (x, y))
+                self.schedule.add(inf)
+                i += 1
+
+        self.datacollector = DataCollector(model_reporters={"Healthy": healthy_count, "Infected": infected_count, "Dead": dead_count}, agent_reporters={"State": "state"})
+
+    def step(self):
+        self.datacollector.collect(self)
+        self.schedule.step()
+
+if __name__ == "__main__":
+
+    health_inf = [[0.5, 0.5], [0.7, 0.3], [0.3, 0.7], [0.9, 0.1], [0.1, 0.9]]
+    prob_mor = [0.05, 0.2, 0.5, 0.7]
+    prob_inf = [0.05, 0.1]
+    world = [20, 20]
+    agents = 400
+    recover = False
+    neighbour = True
+
+    #for hi in range(len(health_inf)):
+    #for m in range(len(prob_mor)):
+    #for i in range(len(prob_inf)):
+    df = {"healthy": [0], "infected": [0], "dead": [0]}
+    final_df = pd.DataFrame.from_dict(df)
+    model = HostModel(agents*0.5, agents*0.5, world[0], world[1], 0.05, 0.1, recover, neighbour, seed=125)
+    for x in range(70):
+        model.step()
+    count = model.datacollector.get_model_vars_dataframe()
+    final = pd.concat([final_df, count], axis=1)
+    final.to_csv("treta")
